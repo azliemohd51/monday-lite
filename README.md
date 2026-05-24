@@ -35,6 +35,10 @@ A single-file simplified clone of Monday.com — board-based project tracker wit
 
 Version appears in the footer.
 
+## Notes
+
+- The browser console will show a Tailwind CDN production warning. This is expected — the no-build single-file design uses the Play CDN intentionally.
+
 ## Layout
 
 ```
