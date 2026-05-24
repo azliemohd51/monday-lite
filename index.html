@@ -1,0 +1,1892 @@
+<!DOCTYPE html>
+<!-- Version: 1.0 -->
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Monday Lite — v1.0</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --c-done: #00C875;
+      --c-working: #FDAB3D;
+      --c-stuck: #E2445C;
+      --c-review: #A25DDC;
+      --c-blocked: #784BD1;
+      --c-idle: #C4C4C4;
+      --c-accent: #6366F1;
+      --c-low: #579BFC;
+      --c-med: #FDAB3D;
+      --c-high: #E2445C;
+    }
+    * { font-family: 'Inter', system-ui, -apple-system, sans-serif; }
+    body { font-feature-settings: 'cv11', 'ss01', 'ss03'; }
+    .scrollbar-thin::-webkit-scrollbar { width: 8px; height: 8px; }
+    .scrollbar-thin::-webkit-scrollbar-track { background: transparent; }
+    .scrollbar-thin::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+    .scrollbar-thin::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+    [contenteditable]:focus { outline: none; }
+    .status-pill {
+      display: inline-flex; align-items: center; justify-content: center;
+      padding: 0 10px; height: 28px; min-width: 92px; max-width: 100%;
+      font-size: 12px; font-weight: 600; color: white;
+      text-transform: none; letter-spacing: 0;
+      cursor: pointer; user-select: none;
+      transition: filter 120ms ease;
+      border-radius: 0; /* Monday-style square pills inside cells */
+    }
+    .status-pill:hover { filter: brightness(1.06); }
+    .status-pill.empty {
+      background: repeating-linear-gradient(135deg, #e2e8f0 0, #e2e8f0 6px, #f1f5f9 6px, #f1f5f9 12px);
+      color: #64748b;
+    }
+    .row-hover:hover { background-color: #f8fafc; }
+    .group-bar { width: 4px; border-radius: 2px; }
+    .cell {
+      border-right: 1px solid #e5e7eb;
+      border-bottom: 1px solid #e5e7eb;
+      padding: 0; height: 36px;
+      display: flex; align-items: center;
+      font-size: 13px;
+    }
+    .cell-pad { padding: 0 12px; width: 100%; height: 100%; display: flex; align-items: center; gap: 6px; }
+    .name-cell {
+      border-bottom: 1px solid #e5e7eb;
+      border-right: 1px solid #e5e7eb;
+      padding: 0 12px;
+      display: flex; align-items: center; gap: 8px;
+      height: 36px; font-size: 14px;
+      cursor: pointer;
+    }
+    .name-cell:hover .open-icon { opacity: 1; }
+    .open-icon { opacity: 0; transition: opacity 120ms; }
+    .col-header {
+      font-size: 12px; font-weight: 600; color: #64748b;
+      letter-spacing: 0.02em;
+      background: #f8fafc;
+      border-bottom: 1px solid #e5e7eb;
+      border-right: 1px solid #e5e7eb;
+      height: 36px;
+      display: flex; align-items: center;
+      padding: 0 12px;
+    }
+    .avatar {
+      width: 24px; height: 24px; border-radius: 50%;
+      display: inline-flex; align-items: center; justify-content: center;
+      color: white; font-size: 10px; font-weight: 600;
+      border: 2px solid white;
+      box-shadow: 0 0 0 1px rgba(0,0,0,0.04);
+    }
+    .avatar-stack > .avatar:not(:first-child) { margin-left: -8px; }
+    .view-tab {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 6px 12px; font-size: 13px; font-weight: 500;
+      color: #64748b; border-radius: 6px;
+      cursor: pointer; transition: all 120ms;
+    }
+    .view-tab:hover { background: #f1f5f9; color: #1e293b; }
+    .view-tab.active { background: white; color: var(--c-accent); box-shadow: 0 1px 2px rgba(0,0,0,0.06); }
+    .sidebar-btn {
+      display: flex; align-items: center; gap: 10px;
+      padding: 8px 12px; border-radius: 6px;
+      font-size: 14px; color: #1e293b;
+      cursor: pointer; transition: background 120ms;
+    }
+    .sidebar-btn:hover { background: #f1f5f9; }
+    .sidebar-btn.active { background: #eef2ff; color: var(--c-accent); font-weight: 500; }
+    .sidebar-btn.active .board-dot { box-shadow: 0 0 0 2px white, 0 0 0 3px var(--c-accent); }
+    .drawer {
+      position: fixed; top: 0; right: 0; bottom: 0;
+      width: 480px; max-width: 90vw;
+      background: white; box-shadow: -8px 0 24px rgba(15, 23, 42, 0.08);
+      transform: translateX(100%); transition: transform 220ms cubic-bezier(0.32, 0.72, 0.4, 1);
+      z-index: 60; display: flex; flex-direction: column;
+    }
+    .drawer.open { transform: translateX(0); }
+    .backdrop {
+      position: fixed; inset: 0; background: rgba(15,23,42,0.32);
+      z-index: 55; opacity: 0; pointer-events: none;
+      transition: opacity 180ms;
+    }
+    .backdrop.open { opacity: 1; pointer-events: auto; }
+    .popover {
+      position: absolute; z-index: 70;
+      background: white; border-radius: 8px;
+      box-shadow: 0 12px 32px rgba(15, 23, 42, 0.16), 0 0 0 1px rgba(15, 23, 42, 0.06);
+      padding: 6px; min-width: 200px;
+    }
+    .popover-item {
+      display: flex; align-items: center; gap: 8px;
+      padding: 8px 10px; border-radius: 6px;
+      font-size: 13px; cursor: pointer;
+    }
+    .popover-item:hover { background: #f1f5f9; }
+    .toast {
+      position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
+      background: #0f172a; color: white; padding: 10px 16px;
+      border-radius: 8px; font-size: 13px; font-weight: 500;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.16);
+      z-index: 100;
+      animation: toast-in 200ms ease, toast-out 200ms ease 2.4s forwards;
+    }
+    @keyframes toast-in { from { opacity: 0; transform: translate(-50%, 10px); } to { opacity: 1; transform: translate(-50%, 0); } }
+    @keyframes toast-out { to { opacity: 0; transform: translate(-50%, 10px); } }
+    .kanban-col { background: #f1f5f9; border-radius: 8px; padding: 8px; min-width: 280px; }
+    .kanban-card {
+      background: white; border-radius: 8px; padding: 10px 12px;
+      box-shadow: 0 1px 2px rgba(15,23,42,0.06), 0 0 0 1px rgba(15,23,42,0.04);
+      margin-bottom: 8px; cursor: grab;
+      transition: transform 120ms, box-shadow 120ms;
+    }
+    .kanban-card:hover { box-shadow: 0 4px 12px rgba(15,23,42,0.1), 0 0 0 1px rgba(99,102,241,0.2); }
+    .kanban-card.dragging { opacity: 0.4; cursor: grabbing; }
+    .kanban-col.dragover { background: #e2e8f0; outline: 2px dashed var(--c-accent); outline-offset: -4px; }
+    .cal-day {
+      background: white; border-radius: 6px; padding: 6px 8px;
+      min-height: 96px; border: 1px solid #e5e7eb;
+      display: flex; flex-direction: column; gap: 4px;
+    }
+    .cal-day.today { border-color: var(--c-accent); box-shadow: 0 0 0 1px var(--c-accent); }
+    .cal-day.outside { background: #f8fafc; color: #94a3b8; }
+    .cal-item {
+      font-size: 11px; padding: 2px 6px; border-radius: 4px;
+      background: var(--c-accent); color: white; font-weight: 500;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+      cursor: pointer;
+    }
+    .chip {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 4px 10px; border-radius: 999px;
+      background: white; border: 1px solid #e2e8f0;
+      font-size: 12px; cursor: pointer; transition: all 120ms;
+    }
+    .chip:hover { border-color: #cbd5e1; }
+    .chip.active { background: var(--c-accent); color: white; border-color: var(--c-accent); }
+    .btn-primary {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 7px 14px; background: var(--c-accent); color: white;
+      border-radius: 6px; font-size: 13px; font-weight: 500;
+      cursor: pointer; transition: filter 120ms;
+    }
+    .btn-primary:hover { filter: brightness(1.08); }
+    .btn-ghost {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 7px 12px; color: #475569;
+      border-radius: 6px; font-size: 13px; font-weight: 500;
+      cursor: pointer; transition: background 120ms;
+    }
+    .btn-ghost:hover { background: #f1f5f9; color: #1e293b; }
+    .input-inline {
+      width: 100%; height: 100%; border: 0; outline: 0; background: transparent;
+      font-size: 13px; padding: 0;
+    }
+    .input-inline:focus {
+      background: white; box-shadow: 0 0 0 2px var(--c-accent) inset;
+    }
+    .group-toggle { transition: transform 160ms; }
+    .group-toggle.collapsed { transform: rotate(-90deg); }
+    .person-chip {
+      display: inline-flex; align-items: center; gap: 6px;
+      background: #f1f5f9; border-radius: 999px; padding: 2px 8px 2px 2px;
+      font-size: 12px;
+    }
+    .person-chip .avatar { width: 20px; height: 20px; border-width: 0; box-shadow: none; }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-900 h-screen overflow-hidden">
+  <div id="app" class="h-full flex flex-col">
+    <!-- TOP BAR -->
+    <header class="h-12 px-4 bg-white border-b border-slate-200 flex items-center justify-between">
+      <div class="flex items-center gap-2">
+        <div class="w-7 h-7 rounded-md flex items-center justify-center" style="background: var(--c-accent)">
+          <i data-lucide="layout-grid" class="w-4 h-4 text-white"></i>
+        </div>
+        <span class="font-semibold text-[15px]">Monday Lite</span>
+        <span class="text-xs text-slate-400 ml-1">workspace</span>
+      </div>
+      <div class="flex items-center gap-2">
+        <button class="btn-ghost" data-action="export-json" title="Download backup">
+          <i data-lucide="download" class="w-4 h-4"></i>
+          <span>Export</span>
+        </button>
+        <button class="btn-ghost" data-action="import-json" title="Restore from backup">
+          <i data-lucide="upload" class="w-4 h-4"></i>
+          <span>Import</span>
+        </button>
+        <input type="file" id="import-file" accept="application/json" class="hidden" />
+      </div>
+    </header>
+
+    <div class="flex-1 flex overflow-hidden">
+      <!-- SIDEBAR -->
+      <aside id="sidebar" class="w-64 bg-white border-r border-slate-200 flex flex-col">
+        <div class="px-3 py-3 flex items-center justify-between">
+          <span class="text-xs font-semibold uppercase tracking-wider text-slate-500">Boards</span>
+          <button class="text-slate-500 hover:text-slate-900 p-1 rounded hover:bg-slate-100" data-action="new-board" title="New board">
+            <i data-lucide="plus" class="w-4 h-4"></i>
+          </button>
+        </div>
+        <div id="board-list" class="flex-1 px-2 overflow-y-auto scrollbar-thin"></div>
+        <div class="px-3 py-3 border-t border-slate-200">
+          <div class="text-[11px] text-slate-400 leading-tight">
+            Local data · saved to this browser.<br/>
+            Use <span class="font-medium text-slate-500">Export</span> for backup.
+          </div>
+        </div>
+      </aside>
+
+      <!-- MAIN -->
+      <main class="flex-1 flex flex-col overflow-hidden bg-slate-50">
+        <div id="board-header"></div>
+        <div id="board-view" class="flex-1 overflow-auto scrollbar-thin"></div>
+      </main>
+    </div>
+
+    <!-- FOOTER -->
+    <footer class="h-7 bg-white border-t border-slate-200 flex items-center justify-between px-4 text-[11px] text-slate-400">
+      <span>Monday Lite · single-file work OS</span>
+      <span class="font-medium" id="version-badge">v1.0</span>
+    </footer>
+  </div>
+
+  <!-- DRAWER -->
+  <div id="backdrop" class="backdrop"></div>
+  <div id="drawer" class="drawer"></div>
+
+  <!-- POPOVER ROOT -->
+  <div id="popover-root"></div>
+  <div id="toast-root"></div>
+
+  <script>
+  // ============================================================================
+  // CONSTANTS & SEED
+  // ============================================================================
+  const STORAGE_KEY = 'monday-lite-state-v1';
+  const VERSION = '1.0';
+
+  const STATUS_PRESET = [
+    { label: 'Done', color: '#00C875' },
+    { label: 'Working on it', color: '#FDAB3D' },
+    { label: 'Stuck', color: '#E2445C' },
+    { label: 'Review', color: '#A25DDC' },
+    { label: 'Not Started', color: '#C4C4C4' }
+  ];
+  const PRIORITY_PRESET = [
+    { label: 'Critical', color: '#E2445C' },
+    { label: 'High', color: '#FDAB3D' },
+    { label: 'Medium', color: '#579BFC' },
+    { label: 'Low', color: '#9CA3AF' }
+  ];
+  const CHANNEL_PRESET = [
+    { label: 'Email', color: '#579BFC' },
+    { label: 'Twitter', color: '#1DA1F2' },
+    { label: 'LinkedIn', color: '#0A66C2' },
+    { label: 'Blog', color: '#00C875' },
+    { label: 'Paid', color: '#A25DDC' }
+  ];
+  const GROUP_PALETTE = ['#6366F1', '#10B981', '#F43F5E', '#F59E0B', '#0EA5E9', '#8B5CF6', '#14B8A6', '#EC4899'];
+  const PERSON_PALETTE = ['#6366F1', '#10B981', '#F43F5E', '#F59E0B', '#0EA5E9', '#8B5CF6', '#14B8A6', '#EC4899'];
+
+  function uid(prefix = '') {
+    return prefix + Math.random().toString(36).slice(2, 9);
+  }
+
+  function seed() {
+    const people = [
+      { id: 'p1', name: 'Azlie M', color: '#6366F1' },
+      { id: 'p2', name: 'Sarah K', color: '#10B981' },
+      { id: 'p3', name: 'Marcus T', color: '#F43F5E' },
+      { id: 'p4', name: 'Yuki I', color: '#F59E0B' },
+      { id: 'p5', name: 'Devi P', color: '#0EA5E9' }
+    ];
+
+    const today = new Date();
+    const dStr = d => d.toISOString().slice(0, 10);
+    const addDays = n => { const d = new Date(today); d.setDate(d.getDate() + n); return dStr(d); };
+
+    const board1 = {
+      id: 'b1', name: 'Product Roadmap', icon: 'rocket', color: '#6366F1',
+      groups: [
+        { id: 'g1', name: 'Q2 Goals', color: '#6366F1', collapsed: false },
+        { id: 'g2', name: 'In Development', color: '#F59E0B', collapsed: false },
+        { id: 'g3', name: 'Backlog', color: '#94A3B8', collapsed: false }
+      ],
+      columns: [
+        { id: 'c1', title: 'Owner', type: 'person' },
+        { id: 'c2', title: 'Status', type: 'status', options: STATUS_PRESET.slice() },
+        { id: 'c3', title: 'Priority', type: 'status', options: PRIORITY_PRESET.slice() },
+        { id: 'c4', title: 'Due Date', type: 'date' },
+        { id: 'c5', title: 'Effort', type: 'number' },
+        { id: 'c6', title: 'Notes', type: 'text' }
+      ],
+      items: [
+        { id: 'i1', groupId: 'g1', name: 'Launch redesigned dashboard',
+          values: { c1: ['p1','p2'], c2: 'Working on it', c3: 'High', c4: addDays(12), c5: 8, c6: 'Wireframes signed off' }},
+        { id: 'i2', groupId: 'g1', name: 'Mobile responsive navigation',
+          values: { c1: ['p3'], c2: 'Review', c3: 'High', c4: addDays(4), c5: 5, c6: 'Final QA pass' }},
+        { id: 'i3', groupId: 'g1', name: 'User onboarding flow',
+          values: { c1: ['p2','p4'], c2: 'Stuck', c3: 'Critical', c4: addDays(-2), c5: 13, c6: 'Blocked on copy' }},
+        { id: 'i4', groupId: 'g2', name: 'Status pill component',
+          values: { c1: ['p1'], c2: 'Done', c3: 'Medium', c4: addDays(-7), c5: 3, c6: '' }},
+        { id: 'i5', groupId: 'g2', name: 'Drag-and-drop kanban',
+          values: { c1: ['p5'], c2: 'Working on it', c3: 'Medium', c4: addDays(6), c5: 5, c6: 'HTML5 DnD' }},
+        { id: 'i6', groupId: 'g2', name: 'Search & filter bar',
+          values: { c1: ['p3','p1'], c2: 'Working on it', c3: 'High', c4: addDays(8), c5: 5, c6: '' }},
+        { id: 'i7', groupId: 'g3', name: 'Dark mode toggle',
+          values: { c1: [], c2: 'Not Started', c3: 'Low', c4: '', c5: 2, c6: '' }},
+        { id: 'i8', groupId: 'g3', name: 'Notification system',
+          values: { c1: ['p4'], c2: 'Not Started', c3: 'Medium', c4: addDays(30), c5: 8, c6: '' }},
+        { id: 'i9', groupId: 'g3', name: 'Activity log per board',
+          values: { c1: [], c2: 'Not Started', c3: 'Low', c4: '', c5: 5, c6: '' }}
+      ],
+      activeView: 'table',
+      kanbanColumnId: 'c2',
+      calendarColumnId: 'c4'
+    };
+
+    const board2 = {
+      id: 'b2', name: 'Marketing Sprints', icon: 'megaphone', color: '#F43F5E',
+      groups: [
+        { id: 'g4', name: 'This Week', color: '#F43F5E', collapsed: false },
+        { id: 'g5', name: 'Next Week', color: '#0EA5E9', collapsed: false },
+        { id: 'g6', name: 'Shipped', color: '#10B981', collapsed: false }
+      ],
+      columns: [
+        { id: 'c1', title: 'Owner', type: 'person' },
+        { id: 'c2', title: 'Status', type: 'status', options: STATUS_PRESET.slice() },
+        { id: 'c3', title: 'Channel', type: 'status', options: CHANNEL_PRESET.slice() },
+        { id: 'c4', title: 'Launch Date', type: 'date' },
+        { id: 'c5', title: 'Budget', type: 'number' },
+        { id: 'c6', title: 'Brief', type: 'text' }
+      ],
+      items: [
+        { id: 'j1', groupId: 'g4', name: 'Q2 product launch campaign',
+          values: { c1: ['p2'], c2: 'Working on it', c3: 'Twitter', c4: addDays(3), c5: 5000, c6: 'Multi-channel push' }},
+        { id: 'j2', groupId: 'g4', name: 'Newsletter #14 — feature recap',
+          values: { c1: ['p4'], c2: 'Review', c3: 'Email', c4: addDays(2), c5: 0, c6: 'Draft in progress' }},
+        { id: 'j3', groupId: 'g4', name: 'Customer story: Acme Co.',
+          values: { c1: ['p5','p2'], c2: 'Working on it', c3: 'Blog', c4: addDays(5), c5: 800, c6: 'Interview booked Tues' }},
+        { id: 'j4', groupId: 'g5', name: 'Webinar registration page',
+          values: { c1: ['p3'], c2: 'Not Started', c3: 'LinkedIn', c4: addDays(11), c5: 1200, c6: '' }},
+        { id: 'j5', groupId: 'g5', name: 'Partner co-marketing brief',
+          values: { c1: ['p2'], c2: 'Not Started', c3: 'Email', c4: addDays(14), c5: 0, c6: '' }},
+        { id: 'j6', groupId: 'g6', name: 'Product Hunt launch',
+          values: { c1: ['p1','p2','p4'], c2: 'Done', c3: 'Twitter', c4: addDays(-8), c5: 2400, c6: '#1 of the day' }},
+        { id: 'j7', groupId: 'g6', name: 'Referral program copy refresh',
+          values: { c1: ['p5'], c2: 'Done', c3: 'Email', c4: addDays(-14), c5: 0, c6: '' }}
+      ],
+      activeView: 'table',
+      kanbanColumnId: 'c2',
+      calendarColumnId: 'c4'
+    };
+
+    return { boards: [board1, board2], people, activeBoardId: 'b1' };
+  }
+
+  // ============================================================================
+  // STATE
+  // ============================================================================
+  let state;
+  function loadState() {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (!raw) return null;
+      const s = JSON.parse(raw);
+      if (!s || !Array.isArray(s.boards)) return null;
+      return s;
+    } catch { return null; }
+  }
+  function saveState() {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  }
+  state = loadState() || seed();
+
+  // ============================================================================
+  // QUERIES
+  // ============================================================================
+  function getBoard() { return state.boards.find(b => b.id === state.activeBoardId) || state.boards[0]; }
+  function getItem(id) { return getBoard().items.find(i => i.id === id); }
+  function getGroup(id) { return getBoard().groups.find(g => g.id === id); }
+  function getColumn(id) { return getBoard().columns.find(c => c.id === id); }
+  function getPerson(id) { return state.people.find(p => p.id === id); }
+  function statusColor(col, label) {
+    const opt = (col.options || []).find(o => o.label === label);
+    return opt ? opt.color : null;
+  }
+
+  // ============================================================================
+  // VIEW FILTER STATE (per board, in-memory only)
+  // ============================================================================
+  const viewFilters = {}; // { boardId: { search, statusFilters: {colId: Set}, personFilter: Set, sortBy, sortDir } }
+  function getVF() {
+    const bid = state.activeBoardId;
+    if (!viewFilters[bid]) viewFilters[bid] = {
+      search: '', statusFilters: {}, personFilter: new Set(), sortBy: null, sortDir: 'asc'
+    };
+    return viewFilters[bid];
+  }
+
+  function applyFilters(items) {
+    const board = getBoard();
+    const vf = getVF();
+    let out = items.slice();
+    if (vf.search) {
+      const q = vf.search.toLowerCase();
+      out = out.filter(i => i.name.toLowerCase().includes(q));
+    }
+    // status filters per status column
+    for (const [colId, set] of Object.entries(vf.statusFilters)) {
+      if (set && set.size > 0) {
+        out = out.filter(i => set.has(i.values[colId]));
+      }
+    }
+    if (vf.personFilter && vf.personFilter.size > 0) {
+      out = out.filter(i => {
+        const personCol = board.columns.find(c => c.type === 'person');
+        if (!personCol) return false;
+        const arr = i.values[personCol.id] || [];
+        return arr.some(pid => vf.personFilter.has(pid));
+      });
+    }
+    if (vf.sortBy) {
+      const col = board.columns.find(c => c.id === vf.sortBy) || { id: '__name__', type: 'text' };
+      const dir = vf.sortDir === 'desc' ? -1 : 1;
+      out.sort((a, b) => {
+        let av, bv;
+        if (vf.sortBy === '__name__') { av = a.name; bv = b.name; }
+        else { av = a.values[col.id]; bv = b.values[col.id]; }
+        if (col.type === 'person') {
+          av = (av && av.length) ? (getPerson(av[0])?.name || '') : '';
+          bv = (bv && bv.length) ? (getPerson(bv[0])?.name || '') : '';
+        } else if (col.type === 'number') {
+          av = av == null ? -Infinity : Number(av);
+          bv = bv == null ? -Infinity : Number(bv);
+        } else if (col.type === 'status') {
+          av = av || ''; bv = bv || '';
+        } else {
+          av = (av || '').toString(); bv = (bv || '').toString();
+        }
+        if (av < bv) return -1 * dir;
+        if (av > bv) return 1 * dir;
+        return 0;
+      });
+    }
+    return out;
+  }
+
+  // ============================================================================
+  // RENDER — SIDEBAR
+  // ============================================================================
+  function renderSidebar() {
+    const list = document.getElementById('board-list');
+    list.innerHTML = '';
+    state.boards.forEach(b => {
+      const active = b.id === state.activeBoardId;
+      const btn = document.createElement('div');
+      btn.className = 'sidebar-btn ' + (active ? 'active' : '');
+      btn.dataset.action = 'switch-board';
+      btn.dataset.boardId = b.id;
+      btn.innerHTML = `
+        <span class="board-dot inline-block w-2.5 h-2.5 rounded-full" style="background:${b.color}"></span>
+        <span class="flex-1 truncate">${escapeHTML(b.name)}</span>
+        <button class="text-slate-400 hover:text-slate-700 p-0.5 rounded" data-action="board-menu" data-board-id="${b.id}">
+          <i data-lucide="more-horizontal" class="w-4 h-4 pointer-events-none"></i>
+        </button>
+      `;
+      list.appendChild(btn);
+    });
+    lucide.createIcons();
+  }
+
+  // ============================================================================
+  // RENDER — BOARD HEADER
+  // ============================================================================
+  function renderHeader() {
+    const board = getBoard();
+    const header = document.getElementById('board-header');
+    const vf = getVF();
+    const personFilterCount = vf.personFilter.size;
+    const statusFilterCount = Object.values(vf.statusFilters).reduce((sum, s) => sum + (s ? s.size : 0), 0);
+    const totalFilters = personFilterCount + statusFilterCount;
+
+    header.innerHTML = `
+      <div class="px-6 pt-5 pb-3 bg-slate-50">
+        <div class="flex items-center justify-between mb-3">
+          <div class="flex items-center gap-3">
+            <div class="w-9 h-9 rounded-lg flex items-center justify-center" style="background:${board.color}22">
+              <i data-lucide="${board.icon || 'kanban'}" class="w-5 h-5" style="color:${board.color}"></i>
+            </div>
+            <h1 class="text-xl font-semibold text-slate-900 outline-none px-1 -mx-1 rounded hover:bg-white"
+                contenteditable="true" data-action="rename-board">${escapeHTML(board.name)}</h1>
+          </div>
+          <div class="flex items-center gap-2">
+            <button class="btn-ghost" data-action="manage-people">
+              <i data-lucide="users" class="w-4 h-4"></i>
+              <span>People (${state.people.length})</span>
+            </button>
+            <button class="btn-primary" data-action="new-item">
+              <i data-lucide="plus" class="w-4 h-4"></i>
+              <span>New Item</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-1 bg-slate-200/60 p-1 rounded-lg">
+            ${['table', 'kanban', 'calendar'].map(v => `
+              <div class="view-tab ${board.activeView === v ? 'active' : ''}" data-action="switch-view" data-view="${v}">
+                <i data-lucide="${v === 'table' ? 'table' : v === 'kanban' ? 'columns-3' : 'calendar'}" class="w-4 h-4"></i>
+                <span class="capitalize">${v}</span>
+              </div>
+            `).join('')}
+          </div>
+
+          <div class="flex items-center gap-2">
+            <div class="relative">
+              <i data-lucide="search" class="w-4 h-4 absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400"></i>
+              <input id="search-input" type="text" placeholder="Search items…"
+                class="pl-8 pr-3 py-1.5 text-sm bg-white border border-slate-200 rounded-md w-56 outline-none focus:border-indigo-400"
+                value="${escapeHTML(vf.search)}" />
+            </div>
+            <button class="btn-ghost relative" data-action="open-filters">
+              <i data-lucide="filter" class="w-4 h-4"></i>
+              <span>Filter${totalFilters ? ' · ' + totalFilters : ''}</span>
+            </button>
+            <button class="btn-ghost" data-action="open-sort">
+              <i data-lucide="arrow-up-down" class="w-4 h-4"></i>
+              <span>Sort${vf.sortBy ? ' · ' + columnLabel(vf.sortBy) : ''}</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    `;
+    lucide.createIcons();
+
+    document.getElementById('search-input')?.addEventListener('input', e => {
+      getVF().search = e.target.value;
+      renderView();
+    });
+  }
+  function columnLabel(id) {
+    if (id === '__name__') return 'Item';
+    const c = getColumn(id);
+    return c ? c.title : '';
+  }
+
+  // ============================================================================
+  // RENDER — VIEW DISPATCH
+  // ============================================================================
+  function renderView() {
+    const board = getBoard();
+    if (board.activeView === 'kanban') renderKanban();
+    else if (board.activeView === 'calendar') renderCalendar();
+    else renderTable();
+  }
+
+  // ============================================================================
+  // RENDER — TABLE
+  // ============================================================================
+  function renderTable() {
+    const board = getBoard();
+    const view = document.getElementById('board-view');
+    const cols = board.columns;
+
+    // Column grid: name (260px) + each column (160px) + add-col (40px)
+    const gridCols = `260px ${cols.map(() => '160px').join(' ')} 40px`;
+
+    let html = `<div class="px-6 py-3">`;
+
+    board.groups.forEach(g => {
+      const items = applyFilters(board.items.filter(i => i.groupId === g.id));
+      const totalItems = board.items.filter(i => i.groupId === g.id).length;
+      html += `
+        <div class="mb-6" data-group-id="${g.id}">
+          <div class="flex items-center gap-2 mb-2">
+            <button class="text-slate-500 hover:text-slate-900 p-0.5" data-action="toggle-group" data-group-id="${g.id}">
+              <i data-lucide="chevron-down" class="w-4 h-4 group-toggle ${g.collapsed ? 'collapsed' : ''}"></i>
+            </button>
+            <div class="group-bar h-5" style="background:${g.color}"></div>
+            <h2 class="text-[15px] font-semibold outline-none px-1 -mx-1 rounded hover:bg-white"
+                style="color:${g.color}"
+                contenteditable="true" data-action="rename-group" data-group-id="${g.id}">${escapeHTML(g.name)}</h2>
+            <span class="text-xs text-slate-400">${items.length}${items.length !== totalItems ? '/' + totalItems : ''} items</span>
+            <button class="ml-auto text-slate-400 hover:text-slate-700 p-1 rounded hover:bg-slate-100"
+                    data-action="group-menu" data-group-id="${g.id}">
+              <i data-lucide="more-horizontal" class="w-4 h-4"></i>
+            </button>
+          </div>
+          ${g.collapsed ? '' : `
+            <div class="bg-white rounded-lg overflow-hidden shadow-[0_1px_2px_rgba(15,23,42,0.04),0_0_0_1px_rgba(15,23,42,0.06)]">
+              <div class="grid" style="grid-template-columns: ${gridCols}">
+                <div class="col-header">
+                  <span style="color:${g.color}; font-weight:700">Item</span>
+                </div>
+                ${cols.map(c => `
+                  <div class="col-header justify-between" data-action="column-menu" data-col-id="${c.id}">
+                    <span>${escapeHTML(c.title)}</span>
+                    <i data-lucide="chevron-down" class="w-3 h-3 opacity-40"></i>
+                  </div>
+                `).join('')}
+                <div class="col-header"></div>
+
+                ${items.map(item => renderRowHTML(item, cols, g)).join('')}
+
+                <div class="col-span-full flex items-center px-3 py-2 border-t border-slate-100 text-sm text-slate-400 hover:bg-slate-50 cursor-pointer"
+                    style="grid-column: 1 / -1"
+                    data-action="add-item" data-group-id="${g.id}">
+                  <i data-lucide="plus" class="w-4 h-4 mr-2"></i> Add item
+                </div>
+              </div>
+            </div>
+          `}
+        </div>
+      `;
+    });
+
+    // Add group button
+    html += `
+      <button class="btn-ghost mt-2" data-action="add-group">
+        <i data-lucide="plus" class="w-4 h-4"></i> Add group
+      </button>
+    </div>`;
+
+    view.innerHTML = html;
+    lucide.createIcons();
+    bindCellEditors(view);
+  }
+
+  function renderRowHTML(item, cols, group) {
+    return `
+      <div class="name-cell row-hover" data-action="open-item" data-item-id="${item.id}" style="border-left: 3px solid ${group.color}">
+        <input type="checkbox" class="rounded border-slate-300" data-stop="1" />
+        <span class="flex-1 truncate" contenteditable="true"
+              data-action="rename-item" data-item-id="${item.id}"
+              onclick="event.stopPropagation()">${escapeHTML(item.name)}</span>
+        <i data-lucide="message-square" class="w-3.5 h-3.5 text-slate-300 open-icon"></i>
+      </div>
+      ${cols.map(c => renderCellHTML(item, c)).join('')}
+      <div class="cell flex justify-center">
+        <button class="text-slate-300 hover:text-rose-500 p-1" data-action="delete-item" data-item-id="${item.id}" title="Delete">
+          <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+        </button>
+      </div>
+    `;
+  }
+
+  function renderCellHTML(item, col) {
+    const v = item.values[col.id];
+    if (col.type === 'status') {
+      const c = statusColor(col, v);
+      if (!v) {
+        return `<div class="cell"><div class="status-pill empty w-full h-full" data-action="edit-status" data-item-id="${item.id}" data-col-id="${col.id}">—</div></div>`;
+      }
+      return `<div class="cell"><div class="status-pill w-full h-full" style="background:${c}" data-action="edit-status" data-item-id="${item.id}" data-col-id="${col.id}">${escapeHTML(v)}</div></div>`;
+    }
+    if (col.type === 'text') {
+      return `<div class="cell"><div class="cell-pad text-slate-700 truncate" data-action="edit-text" data-item-id="${item.id}" data-col-id="${col.id}">${v ? escapeHTML(v) : '<span class="text-slate-300">+ Add</span>'}</div></div>`;
+    }
+    if (col.type === 'number') {
+      return `<div class="cell"><div class="cell-pad justify-end text-slate-700 tabular-nums" data-action="edit-number" data-item-id="${item.id}" data-col-id="${col.id}">${v != null && v !== '' ? v : '<span class="text-slate-300">—</span>'}</div></div>`;
+    }
+    if (col.type === 'date') {
+      return `<div class="cell"><div class="cell-pad text-slate-700" data-action="edit-date" data-item-id="${item.id}" data-col-id="${col.id}">${v ? formatDate(v) : '<span class="text-slate-300">—</span>'}</div></div>`;
+    }
+    if (col.type === 'person') {
+      const arr = (v || []).map(getPerson).filter(Boolean);
+      let inner;
+      if (arr.length === 0) {
+        inner = `<span class="text-slate-300">+ Assign</span>`;
+      } else {
+        inner = `<div class="avatar-stack flex items-center">${arr.slice(0, 4).map(p => `<span class="avatar" style="background:${p.color}" title="${escapeHTML(p.name)}">${initials(p.name)}</span>`).join('')}${arr.length > 4 ? `<span class="avatar bg-slate-400">+${arr.length-4}</span>` : ''}</div>`;
+      }
+      return `<div class="cell"><div class="cell-pad" data-action="edit-person" data-item-id="${item.id}" data-col-id="${col.id}">${inner}</div></div>`;
+    }
+    return `<div class="cell"></div>`;
+  }
+
+  // ============================================================================
+  // RENDER — KANBAN
+  // ============================================================================
+  function renderKanban() {
+    const board = getBoard();
+    const view = document.getElementById('board-view');
+    const statusCols = board.columns.filter(c => c.type === 'status');
+
+    if (statusCols.length === 0) {
+      view.innerHTML = `
+        <div class="h-full flex items-center justify-center">
+          <div class="text-center max-w-md p-8">
+            <div class="w-12 h-12 mx-auto bg-indigo-50 rounded-xl flex items-center justify-center mb-4">
+              <i data-lucide="columns-3" class="w-6 h-6 text-indigo-500"></i>
+            </div>
+            <h3 class="text-lg font-semibold mb-2">No status column</h3>
+            <p class="text-sm text-slate-500 mb-4">Kanban groups items by status. Add a status column to your board to use this view.</p>
+            <button class="btn-primary mx-auto" data-action="add-column" data-col-type="status">
+              <i data-lucide="plus" class="w-4 h-4"></i> Add status column
+            </button>
+          </div>
+        </div>
+      `;
+      lucide.createIcons();
+      return;
+    }
+
+    const col = board.columns.find(c => c.id === board.kanbanColumnId) || statusCols[0];
+    board.kanbanColumnId = col.id;
+    const options = col.options || [];
+    const all = applyFilters(board.items);
+    const emptyBucket = all.filter(i => !i.values[col.id]);
+    const buckets = options.map(opt => ({ opt, items: all.filter(i => i.values[col.id] === opt.label) }));
+    if (emptyBucket.length) buckets.unshift({ opt: { label: 'No status', color: '#C4C4C4' }, items: emptyBucket, _empty: true });
+
+    view.innerHTML = `
+      <div class="px-6 py-4">
+        ${statusCols.length > 1 ? `
+          <div class="flex items-center gap-2 mb-3 text-sm text-slate-600">
+            <span>Group by:</span>
+            <select class="bg-white border border-slate-200 rounded-md px-2 py-1 text-sm outline-none focus:border-indigo-400" data-action="set-kanban-col">
+              ${statusCols.map(c => `<option value="${c.id}" ${c.id === board.kanbanColumnId ? 'selected' : ''}>${escapeHTML(c.title)}</option>`).join('')}
+            </select>
+          </div>
+        ` : ''}
+        <div class="flex gap-3 overflow-x-auto pb-4 scrollbar-thin">
+          ${buckets.map(b => `
+            <div class="kanban-col flex-shrink-0" data-status-label="${b._empty ? '' : escapeHTML(b.opt.label)}" data-col-id="${col.id}">
+              <div class="flex items-center justify-between mb-2 px-1">
+                <div class="flex items-center gap-2">
+                  <span class="inline-block w-2.5 h-2.5 rounded-full" style="background:${b.opt.color}"></span>
+                  <span class="font-semibold text-[13px]" style="color:${b.opt.color}">${escapeHTML(b.opt.label)}</span>
+                  <span class="text-xs text-slate-400">${b.items.length}</span>
+                </div>
+              </div>
+              <div class="kanban-drop min-h-[60px]">
+                ${b.items.map(item => renderKanbanCardHTML(item, board)).join('')}
+              </div>
+              ${b._empty ? '' : `
+                <button class="w-full text-sm text-slate-500 hover:text-slate-900 py-1.5 px-2 rounded hover:bg-white/60 text-left flex items-center gap-1.5"
+                        data-action="add-item-kanban" data-status-label="${escapeHTML(b.opt.label)}" data-col-id="${col.id}">
+                  <i data-lucide="plus" class="w-3.5 h-3.5"></i> Add item
+                </button>
+              `}
+            </div>
+          `).join('')}
+        </div>
+      </div>
+    `;
+    lucide.createIcons();
+    bindKanbanDnD(view);
+  }
+
+  function renderKanbanCardHTML(item, board) {
+    const personCol = board.columns.find(c => c.type === 'person');
+    const dateCol = board.columns.find(c => c.type === 'date');
+    const otherStatus = board.columns.filter(c => c.type === 'status' && c.id !== board.kanbanColumnId);
+    const persons = personCol ? (item.values[personCol.id] || []).map(getPerson).filter(Boolean) : [];
+    const date = dateCol ? item.values[dateCol.id] : '';
+    return `
+      <div class="kanban-card" draggable="true" data-action="open-item" data-item-id="${item.id}">
+        <div class="font-medium text-sm mb-2 leading-snug">${escapeHTML(item.name)}</div>
+        <div class="flex items-center justify-between gap-2 flex-wrap">
+          <div class="flex items-center gap-1.5 flex-wrap">
+            ${otherStatus.map(c => {
+              const v = item.values[c.id];
+              if (!v) return '';
+              const color = statusColor(c, v);
+              return `<span class="text-[10px] font-semibold px-1.5 py-0.5 rounded" style="background:${color}22; color:${color}">${escapeHTML(v)}</span>`;
+            }).join('')}
+          </div>
+          <div class="flex items-center gap-2">
+            ${date ? `<span class="text-[11px] text-slate-500 flex items-center gap-1"><i data-lucide="calendar" class="w-3 h-3"></i>${formatDate(date, true)}</span>` : ''}
+            ${persons.length ? `<div class="avatar-stack flex">${persons.slice(0,3).map(p => `<span class="avatar" style="background:${p.color}; width:22px; height:22px; font-size:9px">${initials(p.name)}</span>`).join('')}</div>` : ''}
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  function bindKanbanDnD(root) {
+    let draggingId = null;
+    root.querySelectorAll('.kanban-card').forEach(card => {
+      card.addEventListener('dragstart', e => {
+        draggingId = card.dataset.itemId;
+        card.classList.add('dragging');
+        e.dataTransfer.effectAllowed = 'move';
+      });
+      card.addEventListener('dragend', () => {
+        card.classList.remove('dragging');
+        draggingId = null;
+        root.querySelectorAll('.kanban-col').forEach(c => c.classList.remove('dragover'));
+      });
+    });
+    root.querySelectorAll('.kanban-col').forEach(col => {
+      col.addEventListener('dragover', e => {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+        col.classList.add('dragover');
+      });
+      col.addEventListener('dragleave', e => {
+        if (!col.contains(e.relatedTarget)) col.classList.remove('dragover');
+      });
+      col.addEventListener('drop', e => {
+        e.preventDefault();
+        col.classList.remove('dragover');
+        if (!draggingId) return;
+        const colId = col.dataset.colId;
+        const newLabel = col.dataset.statusLabel || '';
+        const it = getItem(draggingId);
+        if (!it) return;
+        it.values[colId] = newLabel || undefined;
+        saveState();
+        renderKanban();
+      });
+    });
+  }
+
+  // ============================================================================
+  // RENDER — CALENDAR
+  // ============================================================================
+  let calCursor = startOfMonth(new Date());
+  function startOfMonth(d) { return new Date(d.getFullYear(), d.getMonth(), 1); }
+
+  function renderCalendar() {
+    const board = getBoard();
+    const view = document.getElementById('board-view');
+    const dateCols = board.columns.filter(c => c.type === 'date');
+
+    if (dateCols.length === 0) {
+      view.innerHTML = `
+        <div class="h-full flex items-center justify-center">
+          <div class="text-center max-w-md p-8">
+            <div class="w-12 h-12 mx-auto bg-indigo-50 rounded-xl flex items-center justify-center mb-4">
+              <i data-lucide="calendar" class="w-6 h-6 text-indigo-500"></i>
+            </div>
+            <h3 class="text-lg font-semibold mb-2">No date column</h3>
+            <p class="text-sm text-slate-500 mb-4">Calendar plots items by date. Add a date column to your board to use this view.</p>
+            <button class="btn-primary mx-auto" data-action="add-column" data-col-type="date">
+              <i data-lucide="plus" class="w-4 h-4"></i> Add date column
+            </button>
+          </div>
+        </div>
+      `;
+      lucide.createIcons();
+      return;
+    }
+
+    const col = board.columns.find(c => c.id === board.calendarColumnId) || dateCols[0];
+    board.calendarColumnId = col.id;
+
+    const year = calCursor.getFullYear();
+    const month = calCursor.getMonth();
+    const monthStart = new Date(year, month, 1);
+    const monthEnd = new Date(year, month + 1, 0);
+    const startDay = monthStart.getDay(); // 0 = Sunday
+    const totalCells = Math.ceil((startDay + monthEnd.getDate()) / 7) * 7;
+
+    const items = applyFilters(board.items);
+    const itemsByDate = {};
+    items.forEach(i => {
+      const v = i.values[col.id];
+      if (v) {
+        if (!itemsByDate[v]) itemsByDate[v] = [];
+        itemsByDate[v].push(i);
+      }
+    });
+
+    const monthName = monthStart.toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
+    const todayStr = new Date().toISOString().slice(0, 10);
+    const dayNames = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+
+    let cells = '';
+    for (let i = 0; i < totalCells; i++) {
+      const dayIdx = i - startDay;
+      const d = new Date(year, month, dayIdx + 1);
+      const outside = d.getMonth() !== month;
+      const ds = d.toISOString().slice(0, 10);
+      const isToday = ds === todayStr;
+      const dayItems = itemsByDate[ds] || [];
+      cells += `
+        <div class="cal-day ${outside ? 'outside' : ''} ${isToday ? 'today' : ''}">
+          <div class="flex items-center justify-between mb-1">
+            <span class="text-xs font-semibold ${isToday ? 'text-indigo-600' : ''}">${d.getDate()}</span>
+            ${!outside ? `<button class="text-slate-300 hover:text-indigo-500" data-action="add-item-date" data-date="${ds}" data-col-id="${col.id}"><i data-lucide="plus" class="w-3 h-3 pointer-events-none"></i></button>` : ''}
+          </div>
+          ${dayItems.slice(0, 4).map(it => {
+            const statusCol = getBoard().columns.find(c => c.type === 'status');
+            const statusVal = statusCol ? it.values[statusCol.id] : '';
+            const color = statusCol && statusVal ? statusColor(statusCol, statusVal) : 'var(--c-accent)';
+            return `<div class="cal-item" style="background:${color}" data-action="open-item" data-item-id="${it.id}" title="${escapeHTML(it.name)}">${escapeHTML(it.name)}</div>`;
+          }).join('')}
+          ${dayItems.length > 4 ? `<div class="text-[10px] text-slate-500 px-1">+${dayItems.length-4} more</div>` : ''}
+        </div>
+      `;
+    }
+
+    view.innerHTML = `
+      <div class="px-6 py-4">
+        <div class="flex items-center justify-between mb-3">
+          <div class="flex items-center gap-2">
+            <button class="btn-ghost" data-action="cal-prev"><i data-lucide="chevron-left" class="w-4 h-4"></i></button>
+            <h3 class="text-base font-semibold w-44 text-center">${monthName}</h3>
+            <button class="btn-ghost" data-action="cal-next"><i data-lucide="chevron-right" class="w-4 h-4"></i></button>
+            <button class="btn-ghost ml-2" data-action="cal-today">Today</button>
+          </div>
+          ${dateCols.length > 1 ? `
+            <div class="flex items-center gap-2 text-sm text-slate-600">
+              <span>Plot by:</span>
+              <select class="bg-white border border-slate-200 rounded-md px-2 py-1 text-sm outline-none focus:border-indigo-400" data-action="set-calendar-col">
+                ${dateCols.map(c => `<option value="${c.id}" ${c.id === board.calendarColumnId ? 'selected' : ''}>${escapeHTML(c.title)}</option>`).join('')}
+              </select>
+            </div>
+          ` : ''}
+        </div>
+        <div class="grid grid-cols-7 gap-2 mb-2">
+          ${dayNames.map(d => `<div class="text-xs font-semibold text-slate-500 text-center py-1">${d}</div>`).join('')}
+        </div>
+        <div class="grid grid-cols-7 gap-2">
+          ${cells}
+        </div>
+      </div>
+    `;
+    lucide.createIcons();
+  }
+
+  // ============================================================================
+  // RENDER — DRAWER
+  // ============================================================================
+  function openDrawer(itemId) {
+    const item = getItem(itemId);
+    if (!item) return;
+    const board = getBoard();
+    const drawer = document.getElementById('drawer');
+    const backdrop = document.getElementById('backdrop');
+
+    drawer.innerHTML = `
+      <div class="px-6 py-4 border-b border-slate-200 flex items-center justify-between">
+        <div class="flex items-center gap-2">
+          <span class="inline-block w-2 h-2 rounded-full" style="background:${getGroup(item.groupId)?.color || '#94A3B8'}"></span>
+          <span class="text-xs text-slate-500">${escapeHTML(getGroup(item.groupId)?.name || '')}</span>
+        </div>
+        <button class="btn-ghost" data-action="close-drawer"><i data-lucide="x" class="w-4 h-4"></i></button>
+      </div>
+      <div class="px-6 py-4 border-b border-slate-200">
+        <h2 class="text-xl font-semibold outline-none rounded px-1 -mx-1 hover:bg-slate-50"
+            contenteditable="true" data-action="rename-item-drawer" data-item-id="${item.id}">${escapeHTML(item.name)}</h2>
+      </div>
+      <div class="flex-1 overflow-y-auto scrollbar-thin px-6 py-4 space-y-3">
+        ${board.columns.map(c => `
+          <div class="grid grid-cols-[110px_1fr] gap-3 items-center">
+            <span class="text-xs uppercase tracking-wide font-semibold text-slate-500">${escapeHTML(c.title)}</span>
+            <div class="min-h-[36px] border border-slate-200 rounded-md flex items-center" style="height:36px">
+              ${renderDrawerCellHTML(item, c)}
+            </div>
+          </div>
+        `).join('')}
+      </div>
+      <div class="px-6 py-3 border-t border-slate-200 flex items-center justify-between">
+        <button class="text-sm text-rose-500 hover:text-rose-700 flex items-center gap-1.5"
+                data-action="delete-item-drawer" data-item-id="${item.id}">
+          <i data-lucide="trash-2" class="w-4 h-4"></i> Delete item
+        </button>
+        <span class="text-xs text-slate-400">#${item.id}</span>
+      </div>
+    `;
+    drawer.classList.add('open');
+    backdrop.classList.add('open');
+    drawer.dataset.itemId = itemId;
+    lucide.createIcons();
+    bindCellEditors(drawer);
+  }
+  function renderDrawerCellHTML(item, col) {
+    if (col.type === 'status') {
+      const v = item.values[col.id];
+      const color = statusColor(col, v);
+      if (!v) return `<div class="status-pill empty flex-1 h-full" data-action="edit-status" data-item-id="${item.id}" data-col-id="${col.id}">—</div>`;
+      return `<div class="status-pill flex-1 h-full" style="background:${color}" data-action="edit-status" data-item-id="${item.id}" data-col-id="${col.id}">${escapeHTML(v)}</div>`;
+    }
+    if (col.type === 'text') {
+      const v = item.values[col.id];
+      return `<div class="cell-pad text-slate-700" data-action="edit-text" data-item-id="${item.id}" data-col-id="${col.id}">${v ? escapeHTML(v) : '<span class="text-slate-300">+ Add</span>'}</div>`;
+    }
+    if (col.type === 'number') {
+      const v = item.values[col.id];
+      return `<div class="cell-pad text-slate-700 tabular-nums" data-action="edit-number" data-item-id="${item.id}" data-col-id="${col.id}">${v != null && v !== '' ? v : '<span class="text-slate-300">—</span>'}</div>`;
+    }
+    if (col.type === 'date') {
+      const v = item.values[col.id];
+      return `<div class="cell-pad text-slate-700" data-action="edit-date" data-item-id="${item.id}" data-col-id="${col.id}">${v ? formatDate(v) : '<span class="text-slate-300">—</span>'}</div>`;
+    }
+    if (col.type === 'person') {
+      const arr = (item.values[col.id] || []).map(getPerson).filter(Boolean);
+      const inner = arr.length === 0 ? `<span class="text-slate-300">+ Assign</span>` :
+        `<div class="flex flex-wrap gap-1">${arr.map(p => `<span class="person-chip"><span class="avatar" style="background:${p.color}">${initials(p.name)}</span>${escapeHTML(p.name)}</span>`).join('')}</div>`;
+      return `<div class="cell-pad" data-action="edit-person" data-item-id="${item.id}" data-col-id="${col.id}">${inner}</div>`;
+    }
+    return '';
+  }
+  function closeDrawer() {
+    document.getElementById('drawer').classList.remove('open');
+    document.getElementById('backdrop').classList.remove('open');
+  }
+
+  // ============================================================================
+  // RENDER — FULL
+  // ============================================================================
+  function renderAll() {
+    renderSidebar();
+    renderHeader();
+    renderView();
+  }
+
+  // ============================================================================
+  // CELL EDITORS
+  // ============================================================================
+  function bindCellEditors(root) {
+    // Item name rename via contenteditable
+    root.querySelectorAll('[data-action="rename-item"]').forEach(el => {
+      el.addEventListener('blur', () => {
+        const it = getItem(el.dataset.itemId);
+        if (!it) return;
+        const v = el.textContent.trim();
+        if (v && v !== it.name) {
+          it.name = v;
+          saveState();
+        } else if (!v) {
+          el.textContent = it.name;
+        }
+      });
+      el.addEventListener('keydown', e => {
+        if (e.key === 'Enter') { e.preventDefault(); el.blur(); }
+        if (e.key === 'Escape') { el.textContent = getItem(el.dataset.itemId).name; el.blur(); }
+      });
+    });
+  }
+
+  // ============================================================================
+  // POPOVERS
+  // ============================================================================
+  let activePopover = null;
+  function openPopover(anchor, html, onMount) {
+    closePopover();
+    const root = document.getElementById('popover-root');
+    const pop = document.createElement('div');
+    pop.className = 'popover';
+    pop.innerHTML = html;
+    root.appendChild(pop);
+    const rect = anchor.getBoundingClientRect();
+    pop.style.top = (rect.bottom + 4) + 'px';
+    pop.style.left = rect.left + 'px';
+    // adjust if would overflow right
+    const w = pop.offsetWidth;
+    if (rect.left + w > window.innerWidth - 12) {
+      pop.style.left = (window.innerWidth - w - 12) + 'px';
+    }
+    activePopover = pop;
+    if (onMount) onMount(pop);
+    setTimeout(() => {
+      document.addEventListener('mousedown', popOutside);
+    }, 0);
+  }
+  function popOutside(e) {
+    if (activePopover && !activePopover.contains(e.target)) {
+      closePopover();
+    }
+  }
+  function closePopover() {
+    if (activePopover) activePopover.remove();
+    activePopover = null;
+    document.removeEventListener('mousedown', popOutside);
+  }
+
+  function editStatus(itemId, colId, anchor) {
+    const col = getColumn(colId);
+    if (!col) return;
+    const item = getItem(itemId);
+    if (!item) return;
+    const html = `
+      <div class="text-[11px] uppercase tracking-wider font-semibold text-slate-400 px-2 py-1">${escapeHTML(col.title)}</div>
+      ${col.options.map(o => `
+        <div class="popover-item" data-pick="${escapeHTML(o.label)}">
+          <span class="w-3 h-3 rounded-full" style="background:${o.color}"></span>
+          <span>${escapeHTML(o.label)}</span>
+          ${item.values[colId] === o.label ? '<i data-lucide="check" class="w-3.5 h-3.5 ml-auto text-slate-400"></i>' : ''}
+        </div>
+      `).join('')}
+      ${item.values[colId] ? `<div class="border-t border-slate-100 mt-1 pt-1"><div class="popover-item text-slate-500" data-pick=""><i data-lucide="x" class="w-3.5 h-3.5"></i><span>Clear</span></div></div>` : ''}
+    `;
+    openPopover(anchor, html, pop => {
+      pop.querySelectorAll('[data-pick]').forEach(p => {
+        p.addEventListener('click', () => {
+          const label = p.dataset.pick;
+          item.values[colId] = label || undefined;
+          saveState();
+          closePopover();
+          const board = getBoard();
+          if (board.activeView === 'table') renderTable();
+          else if (board.activeView === 'kanban') renderKanban();
+          else renderCalendar();
+          if (document.getElementById('drawer').classList.contains('open') &&
+              document.getElementById('drawer').dataset.itemId === itemId) openDrawer(itemId);
+        });
+      });
+      lucide.createIcons();
+    });
+  }
+
+  function editPerson(itemId, colId, anchor) {
+    const item = getItem(itemId);
+    if (!item) return;
+    const selected = new Set(item.values[colId] || []);
+    const html = `
+      <div class="text-[11px] uppercase tracking-wider font-semibold text-slate-400 px-2 py-1">Assign people</div>
+      <div class="max-h-72 overflow-y-auto scrollbar-thin">
+        ${state.people.map(p => `
+          <div class="popover-item" data-pid="${p.id}">
+            <span class="avatar" style="background:${p.color}; width:24px; height:24px">${initials(p.name)}</span>
+            <span class="flex-1">${escapeHTML(p.name)}</span>
+            <input type="checkbox" class="rounded border-slate-300 pointer-events-none" ${selected.has(p.id) ? 'checked' : ''} />
+          </div>
+        `).join('')}
+      </div>
+      <div class="border-t border-slate-100 mt-1 pt-1 px-2">
+        <input id="new-person-input" type="text" placeholder="+ New person" class="w-full text-sm bg-slate-50 rounded px-2 py-1.5 outline-none focus:bg-white focus:ring-2 focus:ring-indigo-200" />
+      </div>
+    `;
+    openPopover(anchor, html, pop => {
+      pop.querySelectorAll('[data-pid]').forEach(row => {
+        row.addEventListener('click', () => {
+          const pid = row.dataset.pid;
+          if (selected.has(pid)) selected.delete(pid); else selected.add(pid);
+          item.values[colId] = Array.from(selected);
+          saveState();
+          row.querySelector('input').checked = selected.has(pid);
+          // re-render just the cell on table
+          const board = getBoard();
+          if (board.activeView === 'table') renderTable();
+          else if (board.activeView === 'kanban') renderKanban();
+          else renderCalendar();
+          if (document.getElementById('drawer').classList.contains('open') &&
+              document.getElementById('drawer').dataset.itemId === itemId) openDrawer(itemId);
+        });
+      });
+      const inp = pop.querySelector('#new-person-input');
+      inp?.addEventListener('keydown', e => {
+        if (e.key === 'Enter' && inp.value.trim()) {
+          const name = inp.value.trim();
+          const newP = { id: uid('p'), name, color: PERSON_PALETTE[state.people.length % PERSON_PALETTE.length] };
+          state.people.push(newP);
+          selected.add(newP.id);
+          item.values[colId] = Array.from(selected);
+          saveState();
+          editPerson(itemId, colId, anchor); // reopen
+        }
+      });
+    });
+  }
+
+  function editDate(itemId, colId, anchor) {
+    const item = getItem(itemId);
+    if (!item) return;
+    const cur = item.values[colId] || '';
+    const html = `
+      <div class="p-2">
+        <input type="date" value="${cur}" class="border border-slate-200 rounded px-2 py-1.5 text-sm outline-none focus:border-indigo-400 w-full" id="date-pick" />
+        <div class="flex justify-between mt-2">
+          <button class="btn-ghost text-sm" data-action="clear-date">Clear</button>
+          <button class="btn-primary text-sm" data-action="apply-date">Set</button>
+        </div>
+      </div>
+    `;
+    openPopover(anchor, html, pop => {
+      const input = pop.querySelector('#date-pick');
+      input.focus();
+      pop.querySelector('[data-action="apply-date"]').addEventListener('click', () => {
+        item.values[colId] = input.value || undefined;
+        saveState(); closePopover(); rerenderAfterEdit(itemId);
+      });
+      pop.querySelector('[data-action="clear-date"]').addEventListener('click', () => {
+        item.values[colId] = undefined;
+        saveState(); closePopover(); rerenderAfterEdit(itemId);
+      });
+      input.addEventListener('keydown', e => {
+        if (e.key === 'Enter') {
+          item.values[colId] = input.value || undefined;
+          saveState(); closePopover(); rerenderAfterEdit(itemId);
+        }
+      });
+    });
+  }
+
+  function editText(itemId, colId, anchor) {
+    const item = getItem(itemId);
+    if (!item) return;
+    const cur = item.values[colId] || '';
+    const html = `
+      <div class="p-2">
+        <textarea class="border border-slate-200 rounded px-2 py-1.5 text-sm outline-none focus:border-indigo-400 w-72 min-h-[80px] resize-y" id="text-edit">${escapeHTML(cur)}</textarea>
+        <div class="flex justify-end mt-2 gap-2">
+          <button class="btn-ghost text-sm" data-action="cancel-text">Cancel</button>
+          <button class="btn-primary text-sm" data-action="apply-text">Save</button>
+        </div>
+      </div>
+    `;
+    openPopover(anchor, html, pop => {
+      const ta = pop.querySelector('#text-edit');
+      ta.focus();
+      ta.setSelectionRange(ta.value.length, ta.value.length);
+      pop.querySelector('[data-action="apply-text"]').addEventListener('click', () => {
+        item.values[colId] = ta.value;
+        saveState(); closePopover(); rerenderAfterEdit(itemId);
+      });
+      pop.querySelector('[data-action="cancel-text"]').addEventListener('click', closePopover);
+    });
+  }
+
+  function editNumber(itemId, colId, anchor) {
+    const item = getItem(itemId);
+    if (!item) return;
+    const cur = item.values[colId] != null ? item.values[colId] : '';
+    const html = `
+      <div class="p-2">
+        <input type="number" value="${cur}" class="border border-slate-200 rounded px-2 py-1.5 text-sm outline-none focus:border-indigo-400 w-40" id="num-edit" />
+        <div class="flex justify-end mt-2 gap-2">
+          <button class="btn-ghost text-sm" data-action="cancel-num">Cancel</button>
+          <button class="btn-primary text-sm" data-action="apply-num">Save</button>
+        </div>
+      </div>
+    `;
+    openPopover(anchor, html, pop => {
+      const inp = pop.querySelector('#num-edit');
+      inp.focus(); inp.select();
+      const apply = () => {
+        const v = inp.value === '' ? undefined : Number(inp.value);
+        item.values[colId] = v;
+        saveState(); closePopover(); rerenderAfterEdit(itemId);
+      };
+      pop.querySelector('[data-action="apply-num"]').addEventListener('click', apply);
+      pop.querySelector('[data-action="cancel-num"]').addEventListener('click', closePopover);
+      inp.addEventListener('keydown', e => { if (e.key === 'Enter') apply(); });
+    });
+  }
+
+  function rerenderAfterEdit(itemId) {
+    const board = getBoard();
+    if (board.activeView === 'table') renderTable();
+    else if (board.activeView === 'kanban') renderKanban();
+    else renderCalendar();
+    if (document.getElementById('drawer').classList.contains('open') &&
+        document.getElementById('drawer').dataset.itemId === itemId) openDrawer(itemId);
+  }
+
+  // ============================================================================
+  // COLUMN MENU
+  // ============================================================================
+  function columnMenu(colId, anchor) {
+    const col = getColumn(colId);
+    const html = `
+      <div class="popover-item" data-act="rename"><i data-lucide="pencil" class="w-3.5 h-3.5"></i><span>Rename column</span></div>
+      <div class="popover-item" data-act="sort-asc"><i data-lucide="arrow-up" class="w-3.5 h-3.5"></i><span>Sort ascending</span></div>
+      <div class="popover-item" data-act="sort-desc"><i data-lucide="arrow-down" class="w-3.5 h-3.5"></i><span>Sort descending</span></div>
+      <div class="popover-item text-rose-600" data-act="delete"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i><span>Delete column</span></div>
+      <div class="border-t border-slate-100 mt-1 pt-1">
+        <div class="popover-item" data-act="add-col"><i data-lucide="plus" class="w-3.5 h-3.5"></i><span>Add column</span></div>
+      </div>
+    `;
+    openPopover(anchor, html, pop => {
+      lucide.createIcons();
+      pop.querySelector('[data-act="rename"]').onclick = () => {
+        closePopover();
+        const newName = prompt('Rename column:', col.title);
+        if (newName && newName.trim()) {
+          col.title = newName.trim(); saveState(); renderAll();
+        }
+      };
+      pop.querySelector('[data-act="sort-asc"]').onclick = () => {
+        getVF().sortBy = colId; getVF().sortDir = 'asc';
+        closePopover(); renderAll();
+      };
+      pop.querySelector('[data-act="sort-desc"]').onclick = () => {
+        getVF().sortBy = colId; getVF().sortDir = 'desc';
+        closePopover(); renderAll();
+      };
+      pop.querySelector('[data-act="delete"]').onclick = () => {
+        closePopover();
+        const board = getBoard();
+        const hasData = board.items.some(i => i.values[colId] != null && i.values[colId] !== '' && !(Array.isArray(i.values[colId]) && i.values[colId].length === 0));
+        if (hasData && !confirm(`Delete column "${col.title}" and clear its values from all items?`)) return;
+        board.columns = board.columns.filter(c => c.id !== colId);
+        board.items.forEach(i => delete i.values[colId]);
+        saveState(); renderAll();
+      };
+      pop.querySelector('[data-act="add-col"]').onclick = () => {
+        closePopover(); openAddColumnDialog();
+      };
+    });
+  }
+
+  function openAddColumnDialog(presetType) {
+    const html = `
+      <div class="text-[11px] uppercase tracking-wider font-semibold text-slate-400 px-2 py-1">Add column</div>
+      ${[
+        ['status','Status','tag','Colored labels'],
+        ['text','Text','type','Free text'],
+        ['date','Date','calendar','Date picker'],
+        ['person','People','users','Assign people'],
+        ['number','Number','hash','Numeric value']
+      ].map(([t,l,ic,d]) => `
+        <div class="popover-item" data-type="${t}">
+          <i data-lucide="${ic}" class="w-4 h-4 text-slate-500"></i>
+          <div class="flex flex-col">
+            <span>${l}</span>
+            <span class="text-[11px] text-slate-400">${d}</span>
+          </div>
+        </div>
+      `).join('')}
+    `;
+    const fakeAnchor = { getBoundingClientRect: () => ({ left: window.innerWidth - 280, bottom: 60, right: window.innerWidth - 20 }) };
+    openPopover(fakeAnchor, html, pop => {
+      lucide.createIcons();
+      pop.querySelectorAll('[data-type]').forEach(el => {
+        el.onclick = () => {
+          const t = el.dataset.type;
+          const title = prompt(`Name for new ${t} column:`, t.charAt(0).toUpperCase() + t.slice(1));
+          if (!title) return;
+          const board = getBoard();
+          const newCol = { id: uid('c'), title: title.trim(), type: t };
+          if (t === 'status') newCol.options = STATUS_PRESET.slice();
+          board.columns.push(newCol);
+          saveState(); closePopover(); renderAll();
+        };
+      });
+      if (presetType) {
+        pop.querySelector(`[data-type="${presetType}"]`)?.click();
+      }
+    });
+  }
+
+  // ============================================================================
+  // FILTERS POPOVER
+  // ============================================================================
+  function openFilters(anchor) {
+    const board = getBoard();
+    const vf = getVF();
+    const statusCols = board.columns.filter(c => c.type === 'status');
+    const personCol = board.columns.find(c => c.type === 'person');
+
+    let html = `<div class="w-72 p-3 space-y-3">`;
+    html += `<div class="text-[11px] uppercase tracking-wider font-semibold text-slate-400">Filters</div>`;
+    statusCols.forEach(c => {
+      const set = vf.statusFilters[c.id] = vf.statusFilters[c.id] || new Set();
+      html += `<div>
+        <div class="text-xs font-semibold text-slate-600 mb-1">${escapeHTML(c.title)}</div>
+        <div class="flex flex-wrap gap-1">
+          ${(c.options || []).map(o => `
+            <span class="chip ${set.has(o.label) ? 'active' : ''}" data-filter-col="${c.id}" data-filter-val="${escapeHTML(o.label)}">
+              <span class="w-2 h-2 rounded-full" style="background:${o.color}"></span>
+              ${escapeHTML(o.label)}
+            </span>
+          `).join('')}
+        </div>
+      </div>`;
+    });
+    if (personCol) {
+      html += `<div>
+        <div class="text-xs font-semibold text-slate-600 mb-1">People</div>
+        <div class="flex flex-wrap gap-1">
+          ${state.people.map(p => `
+            <span class="chip ${vf.personFilter.has(p.id) ? 'active' : ''}" data-filter-person="${p.id}">
+              <span class="avatar" style="background:${p.color}; width:18px; height:18px; font-size:9px">${initials(p.name)}</span>
+              ${escapeHTML(p.name)}
+            </span>
+          `).join('')}
+        </div>
+      </div>`;
+    }
+    html += `<div class="border-t border-slate-100 pt-2 flex justify-between">
+      <button class="btn-ghost text-sm" data-act="clear-all">Clear all</button>
+      <button class="btn-primary text-sm" data-act="close">Done</button>
+    </div></div>`;
+
+    openPopover(anchor, html, pop => {
+      pop.querySelectorAll('[data-filter-val]').forEach(chip => {
+        chip.onclick = () => {
+          const cid = chip.dataset.filterCol, val = chip.dataset.filterVal;
+          const set = vf.statusFilters[cid] = vf.statusFilters[cid] || new Set();
+          if (set.has(val)) set.delete(val); else set.add(val);
+          chip.classList.toggle('active');
+          renderHeader();
+          renderView();
+        };
+      });
+      pop.querySelectorAll('[data-filter-person]').forEach(chip => {
+        chip.onclick = () => {
+          const pid = chip.dataset.filterPerson;
+          if (vf.personFilter.has(pid)) vf.personFilter.delete(pid);
+          else vf.personFilter.add(pid);
+          chip.classList.toggle('active');
+          renderHeader();
+          renderView();
+        };
+      });
+      pop.querySelector('[data-act="clear-all"]').onclick = () => {
+        vf.statusFilters = {}; vf.personFilter.clear();
+        closePopover(); renderAll();
+      };
+      pop.querySelector('[data-act="close"]').onclick = closePopover;
+    });
+  }
+
+  function openSort(anchor) {
+    const board = getBoard();
+    const vf = getVF();
+    const cols = [{ id: '__name__', title: 'Item name' }, ...board.columns];
+    const html = `
+      <div class="text-[11px] uppercase tracking-wider font-semibold text-slate-400 px-2 py-1">Sort by</div>
+      ${cols.map(c => `
+        <div class="popover-item" data-sort="${c.id}">
+          <span class="flex-1">${escapeHTML(c.title)}</span>
+          ${vf.sortBy === c.id ? `<span class="text-xs text-indigo-500">${vf.sortDir.toUpperCase()}</span>` : ''}
+        </div>
+      `).join('')}
+      ${vf.sortBy ? `<div class="border-t border-slate-100 mt-1 pt-1">
+        <div class="popover-item" data-sort-toggle><i data-lucide="arrow-up-down" class="w-3.5 h-3.5"></i><span>Toggle direction (${vf.sortDir})</span></div>
+        <div class="popover-item text-slate-500" data-sort-clear><i data-lucide="x" class="w-3.5 h-3.5"></i><span>Clear sort</span></div>
+      </div>` : ''}
+    `;
+    openPopover(anchor, html, pop => {
+      lucide.createIcons();
+      pop.querySelectorAll('[data-sort]').forEach(el => {
+        el.onclick = () => {
+          vf.sortBy = el.dataset.sort; vf.sortDir = 'asc';
+          closePopover(); renderAll();
+        };
+      });
+      pop.querySelector('[data-sort-toggle]')?.addEventListener('click', () => {
+        vf.sortDir = vf.sortDir === 'asc' ? 'desc' : 'asc';
+        closePopover(); renderAll();
+      });
+      pop.querySelector('[data-sort-clear]')?.addEventListener('click', () => {
+        vf.sortBy = null; vf.sortDir = 'asc';
+        closePopover(); renderAll();
+      });
+    });
+  }
+
+  // ============================================================================
+  // BOARD MENU
+  // ============================================================================
+  function boardMenu(boardId, anchor) {
+    const board = state.boards.find(b => b.id === boardId);
+    const html = `
+      <div class="popover-item" data-act="rename"><i data-lucide="pencil" class="w-3.5 h-3.5"></i>Rename board</div>
+      <div class="popover-item" data-act="color"><i data-lucide="palette" class="w-3.5 h-3.5"></i>Change color</div>
+      <div class="popover-item" data-act="duplicate"><i data-lucide="copy" class="w-3.5 h-3.5"></i>Duplicate board</div>
+      <div class="popover-item text-rose-600" data-act="delete"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i>Delete board</div>
+    `;
+    openPopover(anchor, html, pop => {
+      lucide.createIcons();
+      pop.querySelector('[data-act="rename"]').onclick = () => {
+        closePopover();
+        const n = prompt('Rename board:', board.name);
+        if (n && n.trim()) { board.name = n.trim(); saveState(); renderAll(); }
+      };
+      pop.querySelector('[data-act="color"]').onclick = () => {
+        closePopover();
+        const palette = GROUP_PALETTE;
+        const idx = palette.indexOf(board.color);
+        board.color = palette[(idx + 1) % palette.length];
+        saveState(); renderAll();
+      };
+      pop.querySelector('[data-act="duplicate"]').onclick = () => {
+        closePopover();
+        const idMap = {};
+        const newGroups = board.groups.map(g => { const nid = uid('g'); idMap[g.id] = nid; return { ...g, id: nid }; });
+        const newItems = board.items.map(i => ({ ...i, id: uid('i'), groupId: idMap[i.groupId], values: { ...i.values } }));
+        const nb = { ...board, id: uid('b'), name: board.name + ' copy', groups: newGroups, items: newItems };
+        state.boards.push(nb); state.activeBoardId = nb.id;
+        saveState(); renderAll();
+      };
+      pop.querySelector('[data-act="delete"]').onclick = () => {
+        closePopover();
+        if (state.boards.length === 1) { toast('At least one board required'); return; }
+        if (!confirm(`Delete board "${board.name}" and all its items?`)) return;
+        state.boards = state.boards.filter(b => b.id !== boardId);
+        if (state.activeBoardId === boardId) state.activeBoardId = state.boards[0].id;
+        saveState(); renderAll();
+      };
+    });
+  }
+
+  function groupMenu(groupId, anchor) {
+    const board = getBoard();
+    const g = getGroup(groupId);
+    const html = `
+      <div class="popover-item" data-act="rename"><i data-lucide="pencil" class="w-3.5 h-3.5"></i>Rename group</div>
+      <div class="popover-item" data-act="color"><i data-lucide="palette" class="w-3.5 h-3.5"></i>Change color</div>
+      <div class="popover-item" data-act="collapse"><i data-lucide="chevron-up" class="w-3.5 h-3.5"></i>${g.collapsed ? 'Expand' : 'Collapse'}</div>
+      <div class="popover-item text-rose-600" data-act="delete"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i>Delete group</div>
+    `;
+    openPopover(anchor, html, pop => {
+      lucide.createIcons();
+      pop.querySelector('[data-act="rename"]').onclick = () => {
+        closePopover();
+        const n = prompt('Rename group:', g.name);
+        if (n && n.trim()) { g.name = n.trim(); saveState(); renderAll(); }
+      };
+      pop.querySelector('[data-act="color"]').onclick = () => {
+        closePopover();
+        const idx = GROUP_PALETTE.indexOf(g.color);
+        g.color = GROUP_PALETTE[(idx + 1) % GROUP_PALETTE.length];
+        saveState(); renderAll();
+      };
+      pop.querySelector('[data-act="collapse"]').onclick = () => {
+        closePopover();
+        g.collapsed = !g.collapsed; saveState(); renderAll();
+      };
+      pop.querySelector('[data-act="delete"]').onclick = () => {
+        closePopover();
+        const itemCount = board.items.filter(i => i.groupId === groupId).length;
+        if (itemCount && !confirm(`Delete group "${g.name}" and its ${itemCount} item${itemCount===1?'':'s'}?`)) return;
+        board.groups = board.groups.filter(x => x.id !== groupId);
+        board.items = board.items.filter(i => i.groupId !== groupId);
+        if (board.groups.length === 0) {
+          board.groups.push({ id: uid('g'), name: 'New group', color: GROUP_PALETTE[0], collapsed: false });
+        }
+        saveState(); renderAll();
+      };
+    });
+  }
+
+  // ============================================================================
+  // PEOPLE MANAGER
+  // ============================================================================
+  function openPeopleManager() {
+    const drawer = document.getElementById('drawer');
+    const backdrop = document.getElementById('backdrop');
+    drawer.innerHTML = `
+      <div class="px-6 py-4 border-b border-slate-200 flex items-center justify-between">
+        <h2 class="text-lg font-semibold">People</h2>
+        <button class="btn-ghost" data-action="close-drawer"><i data-lucide="x" class="w-4 h-4"></i></button>
+      </div>
+      <div class="flex-1 overflow-y-auto scrollbar-thin px-6 py-4 space-y-2" id="people-list">
+        ${state.people.map(p => `
+          <div class="flex items-center gap-3 p-2 hover:bg-slate-50 rounded-md">
+            <span class="avatar" style="background:${p.color}; width:32px; height:32px; font-size:12px">${initials(p.name)}</span>
+            <input class="flex-1 bg-transparent border-0 outline-none focus:bg-white focus:border-slate-200 border rounded px-2 py-1" value="${escapeHTML(p.name)}" data-pid="${p.id}" data-act="rename" />
+            <button class="text-slate-300 hover:text-rose-500 p-1" data-pid="${p.id}" data-act="delete">
+              <i data-lucide="trash-2" class="w-4 h-4 pointer-events-none"></i>
+            </button>
+          </div>
+        `).join('')}
+      </div>
+      <div class="px-6 py-3 border-t border-slate-200 flex gap-2">
+        <input id="new-person-name" placeholder="New person name…" class="flex-1 px-3 py-2 border border-slate-200 rounded-md text-sm outline-none focus:border-indigo-400" />
+        <button class="btn-primary" id="add-person-btn"><i data-lucide="plus" class="w-4 h-4"></i>Add</button>
+      </div>
+    `;
+    drawer.classList.add('open');
+    backdrop.classList.add('open');
+    drawer.dataset.itemId = '';
+    lucide.createIcons();
+
+    drawer.querySelectorAll('[data-act="rename"]').forEach(inp => {
+      inp.addEventListener('blur', () => {
+        const p = getPerson(inp.dataset.pid);
+        if (p && inp.value.trim()) { p.name = inp.value.trim(); saveState(); }
+      });
+    });
+    drawer.querySelectorAll('[data-act="delete"]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const pid = btn.dataset.pid;
+        const p = getPerson(pid);
+        if (!confirm(`Remove ${p.name}?`)) return;
+        state.people = state.people.filter(x => x.id !== pid);
+        // Remove from all item person columns
+        state.boards.forEach(b => {
+          const personCols = b.columns.filter(c => c.type === 'person');
+          b.items.forEach(it => {
+            personCols.forEach(c => {
+              if (Array.isArray(it.values[c.id])) it.values[c.id] = it.values[c.id].filter(x => x !== pid);
+            });
+          });
+        });
+        saveState(); openPeopleManager(); renderView();
+      });
+    });
+    document.getElementById('add-person-btn').addEventListener('click', () => {
+      const inp = document.getElementById('new-person-name');
+      const name = inp.value.trim();
+      if (!name) return;
+      state.people.push({ id: uid('p'), name, color: PERSON_PALETTE[state.people.length % PERSON_PALETTE.length] });
+      saveState(); openPeopleManager();
+    });
+    document.getElementById('new-person-name').addEventListener('keydown', e => {
+      if (e.key === 'Enter') document.getElementById('add-person-btn').click();
+    });
+  }
+
+  // ============================================================================
+  // ACTIONS / EVENT DELEGATION
+  // ============================================================================
+  document.addEventListener('click', e => {
+    if (e.target.dataset?.stop) return;
+    const action = e.target.closest('[data-action]')?.dataset.action;
+    if (!action) return;
+    const t = e.target.closest('[data-action]');
+
+    if (action === 'switch-board') {
+      state.activeBoardId = t.dataset.boardId; saveState(); renderAll(); return;
+    }
+    if (action === 'board-menu') {
+      e.stopPropagation();
+      boardMenu(t.dataset.boardId, t); return;
+    }
+    if (action === 'new-board') {
+      const name = prompt('Board name:', 'New Board');
+      if (!name) return;
+      const color = GROUP_PALETTE[state.boards.length % GROUP_PALETTE.length];
+      const b = {
+        id: uid('b'), name: name.trim(), icon: 'kanban', color,
+        groups: [{ id: uid('g'), name: 'Group', color, collapsed: false }],
+        columns: [
+          { id: uid('c'), title: 'Owner', type: 'person' },
+          { id: uid('c'), title: 'Status', type: 'status', options: STATUS_PRESET.slice() },
+          { id: uid('c'), title: 'Date', type: 'date' }
+        ],
+        items: [], activeView: 'table'
+      };
+      state.boards.push(b); state.activeBoardId = b.id;
+      saveState(); renderAll(); return;
+    }
+    if (action === 'switch-view') {
+      getBoard().activeView = t.dataset.view; saveState(); renderAll(); return;
+    }
+    if (action === 'rename-board') {
+      // contenteditable handled on blur via listener bound below
+      return;
+    }
+    if (action === 'toggle-group') {
+      const g = getGroup(t.dataset.groupId); g.collapsed = !g.collapsed; saveState(); renderTable(); return;
+    }
+    if (action === 'group-menu') {
+      e.stopPropagation(); groupMenu(t.dataset.groupId, t); return;
+    }
+    if (action === 'add-group') {
+      const name = prompt('Group name:', 'New Group');
+      if (!name) return;
+      const board = getBoard();
+      board.groups.push({ id: uid('g'), name: name.trim(), color: GROUP_PALETTE[board.groups.length % GROUP_PALETTE.length], collapsed: false });
+      saveState(); renderTable(); return;
+    }
+    if (action === 'rename-group') return; // contenteditable
+
+    if (action === 'add-item') {
+      const board = getBoard();
+      const newItem = { id: uid('i'), groupId: t.dataset.groupId, name: 'New item', values: {} };
+      board.items.push(newItem); saveState(); renderTable();
+      // Focus the new item name
+      setTimeout(() => {
+        const el = document.querySelector(`[data-action="rename-item"][data-item-id="${newItem.id}"]`);
+        if (el) { el.focus(); document.getSelection().selectAllChildren(el); }
+      }, 0);
+      return;
+    }
+    if (action === 'add-item-kanban') {
+      const board = getBoard();
+      const groupId = board.groups[0]?.id;
+      if (!groupId) return;
+      const newItem = { id: uid('i'), groupId, name: 'New item', values: { [t.dataset.colId]: t.dataset.statusLabel } };
+      board.items.push(newItem); saveState(); renderKanban();
+      setTimeout(() => openDrawer(newItem.id), 50); return;
+    }
+    if (action === 'add-item-date') {
+      const board = getBoard();
+      const groupId = board.groups[0]?.id;
+      if (!groupId) return;
+      const newItem = { id: uid('i'), groupId, name: 'New item', values: { [t.dataset.colId]: t.dataset.date } };
+      board.items.push(newItem); saveState(); renderCalendar();
+      setTimeout(() => openDrawer(newItem.id), 50); return;
+    }
+    if (action === 'new-item') {
+      const board = getBoard();
+      const groupId = board.groups[0]?.id;
+      if (!groupId) return;
+      const newItem = { id: uid('i'), groupId, name: 'New item', values: {} };
+      board.items.push(newItem); saveState(); renderView();
+      setTimeout(() => openDrawer(newItem.id), 50); return;
+    }
+    if (action === 'rename-item') return; // contenteditable
+    if (action === 'delete-item' || action === 'delete-item-drawer') {
+      const id = t.dataset.itemId; const it = getItem(id);
+      if (!it) return;
+      if (!confirm(`Delete "${it.name}"?`)) return;
+      const board = getBoard();
+      board.items = board.items.filter(x => x.id !== id);
+      saveState();
+      if (action === 'delete-item-drawer') closeDrawer();
+      renderView();
+      return;
+    }
+    if (action === 'open-item') {
+      // ignore if clicking the contenteditable directly or its trash button
+      if (e.target.closest('[data-action="rename-item"]')) return;
+      if (e.target.closest('[data-action="delete-item"]')) return;
+      openDrawer(t.dataset.itemId); return;
+    }
+    if (action === 'close-drawer') { closeDrawer(); return; }
+    if (action === 'rename-item-drawer') return; // contenteditable
+
+    if (action === 'edit-status') { e.stopPropagation(); editStatus(t.dataset.itemId, t.dataset.colId, t); return; }
+    if (action === 'edit-person') { e.stopPropagation(); editPerson(t.dataset.itemId, t.dataset.colId, t); return; }
+    if (action === 'edit-date') { e.stopPropagation(); editDate(t.dataset.itemId, t.dataset.colId, t); return; }
+    if (action === 'edit-text') { e.stopPropagation(); editText(t.dataset.itemId, t.dataset.colId, t); return; }
+    if (action === 'edit-number') { e.stopPropagation(); editNumber(t.dataset.itemId, t.dataset.colId, t); return; }
+
+    if (action === 'column-menu') { e.stopPropagation(); columnMenu(t.dataset.colId, t); return; }
+    if (action === 'add-column') {
+      openAddColumnDialog(t.dataset.colType); return;
+    }
+    if (action === 'open-filters') { e.stopPropagation(); openFilters(t); return; }
+    if (action === 'open-sort') { e.stopPropagation(); openSort(t); return; }
+    if (action === 'manage-people') { openPeopleManager(); return; }
+
+    if (action === 'cal-prev') { calCursor = new Date(calCursor.getFullYear(), calCursor.getMonth()-1, 1); renderCalendar(); return; }
+    if (action === 'cal-next') { calCursor = new Date(calCursor.getFullYear(), calCursor.getMonth()+1, 1); renderCalendar(); return; }
+    if (action === 'cal-today') { calCursor = startOfMonth(new Date()); renderCalendar(); return; }
+
+    if (action === 'export-json') { exportJSON(); return; }
+    if (action === 'import-json') { document.getElementById('import-file').click(); return; }
+  });
+
+  // Backdrop closes drawer
+  document.getElementById('backdrop').addEventListener('click', closeDrawer);
+
+  // Contenteditable handlers (board name + group name + item name in drawer/table)
+  document.addEventListener('blur', e => {
+    const action = e.target.dataset?.action;
+    if (action === 'rename-board') {
+      const board = getBoard();
+      const v = e.target.textContent.trim();
+      if (v && v !== board.name) { board.name = v; saveState(); renderSidebar(); }
+      else if (!v) e.target.textContent = board.name;
+    }
+    if (action === 'rename-group') {
+      const g = getGroup(e.target.dataset.groupId);
+      const v = e.target.textContent.trim();
+      if (v && v !== g.name) { g.name = v; saveState(); }
+      else if (!v) e.target.textContent = g.name;
+    }
+    if (action === 'rename-item' || action === 'rename-item-drawer') {
+      const it = getItem(e.target.dataset.itemId);
+      if (!it) return;
+      const v = e.target.textContent.trim();
+      if (v && v !== it.name) {
+        it.name = v; saveState();
+        if (action === 'rename-item-drawer') renderView();
+      }
+      else if (!v) e.target.textContent = it.name;
+    }
+  }, true);
+
+  document.addEventListener('keydown', e => {
+    const action = e.target.dataset?.action;
+    if (['rename-board','rename-group','rename-item','rename-item-drawer'].includes(action)) {
+      if (e.key === 'Enter') { e.preventDefault(); e.target.blur(); }
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        if (action === 'rename-board') e.target.textContent = getBoard().name;
+        else if (action === 'rename-group') e.target.textContent = getGroup(e.target.dataset.groupId).name;
+        else e.target.textContent = getItem(e.target.dataset.itemId).name;
+        e.target.blur();
+      }
+    }
+    if (e.key === 'Escape') {
+      if (activePopover) closePopover();
+      else if (document.getElementById('drawer').classList.contains('open')) closeDrawer();
+    }
+  });
+
+  // Kanban col change
+  document.addEventListener('change', e => {
+    if (e.target.dataset?.action === 'set-kanban-col') {
+      getBoard().kanbanColumnId = e.target.value; saveState(); renderKanban();
+    }
+    if (e.target.dataset?.action === 'set-calendar-col') {
+      getBoard().calendarColumnId = e.target.value; saveState(); renderCalendar();
+    }
+  });
+
+  // ============================================================================
+  // EXPORT / IMPORT
+  // ============================================================================
+  function exportJSON() {
+    const data = JSON.stringify(state, null, 2);
+    const blob = new Blob([data], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    const stamp = new Date().toISOString().slice(0, 10);
+    a.href = url; a.download = `monday-lite-backup-${stamp}.json`;
+    document.body.appendChild(a); a.click(); a.remove();
+    URL.revokeObjectURL(url);
+    toast('Backup downloaded');
+  }
+  document.getElementById('import-file').addEventListener('change', e => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const parsed = JSON.parse(reader.result);
+        if (!parsed.boards || !Array.isArray(parsed.boards)) throw new Error('Invalid shape');
+        if (!confirm(`Import ${parsed.boards.length} board(s)? This replaces current data.`)) return;
+        state = parsed;
+        // Convert person filter sets if any (they're per-session anyway)
+        for (const k in viewFilters) delete viewFilters[k];
+        saveState(); renderAll();
+        toast('Data imported');
+      } catch (err) {
+        alert('Could not import: ' + err.message);
+      }
+      e.target.value = '';
+    };
+    reader.readAsText(file);
+  });
+
+  // ============================================================================
+  // UTILS
+  // ============================================================================
+  function escapeHTML(s) {
+    return String(s ?? '').replace(/[&<>"']/g, c => ({
+      '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+    }[c]));
+  }
+  function initials(name) {
+    return name.split(/\s+/).map(s => s[0]).slice(0, 2).join('').toUpperCase();
+  }
+  function formatDate(s, short = false) {
+    if (!s) return '';
+    const d = new Date(s + 'T12:00:00');
+    if (isNaN(d)) return s;
+    if (short) return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+    return d.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
+  }
+  function toast(msg) {
+    const root = document.getElementById('toast-root');
+    const t = document.createElement('div');
+    t.className = 'toast';
+    t.textContent = msg;
+    root.appendChild(t);
+    setTimeout(() => t.remove(), 2800);
+  }
+
+  // ============================================================================
+  // INIT
+  // ============================================================================
+  renderAll();
+  lucide.createIcons();
+  </script>
+</body>
+</html>
